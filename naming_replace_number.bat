@@ -61,8 +61,8 @@ ECHO making %dir:"=%\Renamed
 ECHO:
 MD Renamed
 
-SET renamed_dir=%dir%
-SET "renamed_dir=%renamed_dir%\Renamed"
+SET renamed_dir=%dir:"=%
+SET renamed_dir=%renamed_dir%\Renamed
 
 REM add padding to avoid sorting issue with linux system
 SET zero_prefix=0
@@ -80,35 +80,32 @@ IF %ucount% GTR 0 (
 	GOTO :COUNT_DIGITS
 )
 
-IF %count% LEQ 0 GOTO :RENAME
+IF %count% LEQ 0 GOTO :EXTRACTION
 
-:RENAME
-REM With loop commands like FOR, compound or bracketed expressions, Delayed Expansion will allow you to always read the current value of the variable.
-SETLOCAL enabledelayedexpansion
+:EXTRACTION
+FOR /F "delims=" %%f IN ('dir /a:-d-h-s /b') DO CALL :RENAME_SUBROUTINE "%%f"
+GOTO :RENAME_FINISHED
 
-FOR /F "tokens=1-3 delims=." %%f IN ('dir /a:-d-h-s /b') DO (
-	SET name=%%f
-	SET name_or_ext=%%g
-	SET ext=%%h
+:RENAME_SUBROUTINE
+SET name=%~n1
+SET ext=%~x1
 
-	SET new_name=!zero_prefix!!num!
-	SET new_name=!new_name:~-%digits%!
+SET new_name=%zero_prefix%%num%
+CALL SET "new_name=%%new_name:~-%digits%%%"
 
-	IF [%%h] == [] (
-		ECHO renaming !name!.!name_or_ext! to !new_name!.!name_or_ext!
+ECHO renaming %name%%ext% to %new_name%%ext%
 
-		COPY /y !dir!\!name!.!name_or_ext! !renamed_dir!\!new_name!.!name_or_ext! 1>NUL
-	) ELSE (
-		ECHO renaming !name!.!name_or_ext!.!ext! to !new_name!.!ext!
+SET "fromPath=%dir:"=%\%name%%ext%"
+SET "toPath=%renamed_dir%\%new_name%%ext%"
 
-		COPY /y !dir!\!name!.!name_or_ext!.!ext! !renamed_dir!\!new_name!.!ext! 1>NUL
-	)
+ECHO %fromPath%
 
-	SET /a "num=!num!+1"
-)
+COPY /y "%fromPath%" "%toPath%" 1>NUL
+SET /A "num=%num%+1"
 
-SETLOCAL disabledelayedexpansion
+EXIT /B
 
+:RENAME_FINISHED
 ECHO:
 ECHO rename all %total% files 
 ECHO:
